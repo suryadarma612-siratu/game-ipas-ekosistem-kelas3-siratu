@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8"><title>Petualangan Penjelajah Ekosistem</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff7e0;--ink:#2b3a55;--card:#fff;--ac:#ff8a3d;--ok:#2fb36d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1d2740;--ink:#f4f1e8;--card:#2c3a5c}}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Trebuchet MS","Comic Sans MS",sans-serif;display:flex;align-items:center;justify-content:center;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-text-size-adjust:100%}
+#w{position:relative;width:min(100vw,200vh);width:min(100vw,200dvh);aspect-ratio:2/1;font-size:clamp(11px,2.1vw,20px);overflow:hidden;border-radius:12px}
+canvas{display:block;width:100%;height:100%;background:#8fd3ff}
+#hud{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:.5em;padding:.2em .5em;background:rgba(255,255,255,.75);color:#2b3a55;font-weight:bold}
+#hud span{flex:1}
+.b{font:inherit;font-weight:bold;border:0;border-radius:14px;padding:.5em 1em;background:var(--ac);color:#fff;cursor:pointer;margin:.2em;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.b.g{background:var(--ok)}.b.s{padding:.2em .6em}
+.b:disabled{opacity:.45;cursor:not-allowed}
+#ui{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,30,60,.6);overflow:auto}
+.pn{background:var(--card);color:var(--ink);width:88%;max-height:94%;overflow:auto;padding:.8em;border-radius:20px;text-align:center;animation:pop .3s}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes fall{to{transform:translateY(120vh) rotate(360deg)}}
+.cf{position:absolute;top:-10%;font-size:2em;animation:fall 3s linear infinite;pointer-events:none}
+h1,h2{margin:.2em 0}
+.gr{display:grid;grid-template-columns:repeat(5,1fr);gap:.4em}
+.ck{background:#fff8dc;color:#2b3a55;border:3px solid var(--ac);border-radius:12px;padding:.3em;font-size:.8em}
+.ck big{font-size:2em;display:block}
+#tc{position:absolute;bottom:8px;left:8px;right:8px;display:none;justify-content:space-between;pointer-events:none}
+#tc div{display:flex;gap:10px;pointer-events:auto}
+#tc button{width:56px;height:56px;border-radius:50%;border:0;font-size:24px;background:rgba(255,255,255,.7);touch-action:none}
+@media(pointer:coarse){#tc{display:flex}}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:.8em;text-align:left;align-items:start}
+.pn input{font:inherit;padding:.5em;margin:.25em;border-radius:12px;border:3px solid var(--ac);width:70%;text-align:center;background:#fff;color:#2b3a55;-webkit-user-select:text;user-select:text}
+@media(orientation:portrait){#w{overflow:visible;font-size:clamp(14px,3.6vw,20px)}#hud{font-size:.75em}#ui{position:fixed}#tc{top:100%;bottom:auto;margin-top:14px}.mg{grid-template-columns:1fr}}
+</style></head><body>
+<div id="w">
+<canvas id="c" width="900" height="450"></canvas>
+<div id="hud" style="display:none"><span id="hl"></span><span id="hs"></span>
+<button class="b s" onclick="openMap()">🗺️ Peta</button><button class="b s" onclick="openBook()">📖 Buku</button><button class="b s" onclick="mus=!mus;this.textContent=mus?'🎵':'🔇'">🎵</button><button class="b s" onclick="openMenu()">🏠</button></div>
+<div id="tc"><div><button id="bl">◀</button><button id="br">▶</button></div><div><button id="be">E</button><button id="bj">⬆</button></div></div>
+<div id="ui"></div>
+</div>
+<script>
+// ===== DATA: 10 level. Kartu: emoji|nama|kategori|penjelasan. Kuis: soal|a|b|c|indeks benar|petunjuk
+const L=[
+{n:"Taman dan Kebun",s:["#8fd3ff","#e6f7ff"],g:"#5bbf4a",d:"🌳 🌷 🌻 🌼 🌲",
+c:["🐌|Siput|Hewan (Biotik)|Siput makhluk hidup. Ia makan, tumbuh, dan bergerak pelan.","🌱|Rumput|Tumbuhan (Biotik)|Rumput hidup, tumbuh, dan membuat makanan sendiri.","💧|Air|Abiotik|Air bukan makhluk hidup, tetapi semua makhluk hidup membutuhkannya.","🪨|Batu|Abiotik|Batu benda tak hidup. Ia tidak tumbuh dan tidak bernapas.","☀️|Cahaya Matahari|Abiotik|Matahari memberi cahaya dan panas untuk tumbuhan dan hewan."],
+q:["Manakah komponen biotik?|Batu|Belalang|Udara|1|Biotik artinya makhluk hidup.","Apa contoh komponen abiotik?|Air|Cacing|Lebah|0|Abiotik adalah benda tak hidup.","Mengapa tumbuhan membutuhkan cahaya matahari?|Untuk membuat makanan|Untuk tidur|Untuk berlari|0|Daun memakai cahaya untuk membuat makanan."]},
+{n:"Ekosistem Air Tawar",s:["#7ecbff","#c9f0ff"],g:"#3f9ec9",d:"🌿 🪷 🪨 🦆",
+c:["🐟|Ikan Mas|Hewan (Biotik)|Ikan mas bernapas dengan insang di air tawar.","🐸|Katak|Hewan (Biotik)|Katak hidup di air dan di darat. Anaknya bernama kecebong.","🪷|Teratai|Tumbuhan (Biotik)|Daun teratai mengapung di kolam dan mendapat cahaya matahari.","🌿|Eceng Gondok|Tumbuhan (Biotik)|Tumbuhan air yang mengapung. Jika terlalu banyak, kolam jadi penuh.","🪲|Serangga Air|Hewan (Biotik)|Serangga kecil yang hidup di permukaan atau dalam air."],
+q:["Bagaimana rasa air tawar?|Asin|Tidak asin|Manis sekali|1|Air sungai dan danau tidak asin.","Apa yang terjadi jika air kolam tercemar?|Ikan menjadi sehat|Ikan bisa sakit atau mati|Kolam makin bersih|1|Sampah membuat air kotor dan berbahaya.","Manakah tumbuhan air?|Teratai|Kaktus|Pinus|0|Teratai mengapung di kolam."]},
+{n:"Ekosistem Air Laut",s:["#4aa8e8","#9fe0ff"],g:"#e8d28a",d:"🪸 🌿 🐠 🫧",
+c:["🦈|Ikan Hiu|Hewan (Biotik)|Hiu pemangsa yang hidup di laut yang asin.","🐋|Paus|Hewan (Biotik)|Paus hewan terbesar di laut. Ia bernapas dengan paru-paru.","🪸|Terumbu Karang|Biotik|Terumbu karang rumah bagi banyak ikan kecil.","🪼|Ubur-ubur|Hewan (Biotik)|Tubuhnya lembut seperti agar-agar dan melayang di laut.","🌿|Rumput Laut|Tumbuhan (Biotik)|Tumbuhan laut yang dimakan hewan dan manusia."],
+q:["Bagaimana rasa air laut?|Asin|Tawar|Manis|0|Air laut mengandung banyak garam.","Manakah hewan laut?|Katak|Paus|Unta|1|Paus hidup di laut.","Terumbu karang adalah rumah bagi...|Ikan-ikan laut|Unta|Singa|0|Banyak ikan berlindung di sana."]},
+{n:"Ekosistem Sawah",s:["#a9e4ff","#fff7c9"],g:"#8bc34a",d:"🌾 🌾 🌴 🌾",
+c:["🌾|Padi|Tumbuhan (Biotik)|Padi menghasilkan beras untuk nasi.","🌽|Jagung|Tumbuhan (Biotik)|Jagung ditanam di tanah subur dan butuh sinar matahari.","🐀|Tikus|Hewan (Biotik)|Tikus suka memakan padi. Ia dimakan oleh ular.","🐍|Ular Sawah|Hewan (Biotik)|Ular memakan tikus sehingga sawah terjaga.","🐦|Burung Pemakan Padi|Hewan (Biotik)|Burung makan bulir padi dan serangga."],
+q:["Siapa yang memakan padi?|Tikus|Batu|Air|0|Tikus pemakan biji-bijian.","Rantai makanan: padi, tikus, ...|Ular|Kaktus|Salju|0|Ular sawah memakan tikus.","Apa yang dibutuhkan padi untuk tumbuh?|Air, tanah, matahari|Salju|Pasir saja|0|Padi butuh air, tanah, dan cahaya."]},
+{n:"Padang Rumput dan Sabana",s:["#ffd27a","#fff0c2"],g:"#c9b458",d:"🌳 🌿 🌾 🌿",
+c:["🦓|Zebra|Hewan (Biotik)|Zebra pemakan rumput dengan belang hitam putih.","🦒|Jerapah|Hewan (Biotik)|Leher panjang membantunya makan daun tinggi.","🦌|Rusa|Hewan (Biotik)|Rusa makan rumput dan daun.","🦁|Singa|Hewan (Biotik)|Singa pemburu yang hidup berkelompok.","🌳|Pohon Sabana|Tumbuhan (Biotik)|Sabana punya pohon yang tumbuh jarang-jarang."],
+q:["Padang rumput didominasi oleh...|Rumput|Pohon besar|Salju|0|Pohon sangat sedikit.","Sabana memiliki...|Hanya pasir|Rumput dan pohon tersebar|Es|1|Ada pohon di sana-sini.","Hewan berleher panjang di sabana?|Jerapah|Singa|Hiu|0|Ia makan daun tinggi."]},
+{n:"Ekosistem Gurun",s:["#ffe29a","#ffb870"],g:"#f0c36b",d:"🌵 🪨 🏜️ 🌵",
+c:["🌵|Kaktus|Tumbuhan (Biotik)|Kaktus menyimpan air di batangnya.","🐪|Unta|Hewan (Biotik)|Punuknya menyimpan lemak, jadi tahan lapar dan haus.","🐍|Ular Derik|Hewan (Biotik)|Ular gurun yang bersembunyi saat siang panas.","🦎|Kadal Gurun|Hewan (Biotik)|Kadal berlari cepat di pasir panas.","🏜️|Pasir|Abiotik|Pasir luas dan panas, sedikit air."],
+q:["Hewan yang hidup di gurun?|Unta|Paus|Beruang kutub|0|Unta tahan haus.","Mengapa kaktus bisa bertahan?|Menyimpan air|Suka salju|Hidup di laut|0|Batangnya menyimpan air.","Gurun itu...|Panas dan sedikit air|Dingin dan basah|Penuh ikan|0|Hujan jarang turun."]},
+{n:"Hutan Hujan Tropis",s:["#7fd6a0","#c6f1d0"],g:"#2e8b4a",d:"🌴 🌳 🌺 🌿",
+c:["🌳|Pohon Jati|Tumbuhan (Biotik)|Jati pohon tinggi dengan kayu kuat.","🌸|Anggrek|Tumbuhan (Biotik)|Anggrek bunga cantik yang menempel di pohon.","🐒|Monyet|Hewan (Biotik)|Monyet memanjat pohon dan makan buah.","🐅|Harimau|Hewan (Biotik)|Harimau pemburu belang yang hidup di hutan.","🐘|Gajah|Hewan (Biotik)|Gajah hewan darat besar, belalainya untuk minum dan makan."],
+q:["Hutan hujan tropis memiliki pohon...|Jarang-jarang|Lebat dan banyak|Tidak ada|1|Hutan sangat rimbun.","Mengapa hutan harus dilestarikan?|Rumah banyak makhluk hidup|Agar gundul|Agar panas|0|Hewan dan tumbuhan tinggal di sana.","Hewan hutan hujan tropis?|Harimau|Unta|Singa laut|0|Belang oranye."]},
+{n:"Ekosistem Taiga",s:["#b9d4e8","#e9f2f8"],g:"#d8e8e0",d:"🌲 🎄 🌲 ❄️",
+c:["🌲|Pohon Pinus|Tumbuhan (Biotik)|Pinus berdaun seperti jarum dan tahan dingin.","🎄|Pohon Cemara|Tumbuhan (Biotik)|Cemara berbentuk kerucut sehingga salju mudah jatuh.","🐻|Beruang Hitam|Hewan (Biotik)|Beruang berbulu tebal dan tidur panjang di musim dingin.","🐺|Serigala|Hewan (Biotik)|Serigala berburu berkelompok dan berbulu tebal.","❄️|Udara Dingin|Abiotik|Taiga berhawa dingin dengan musim dingin yang panjang."],
+q:["Pohon khas taiga?|Pinus|Kaktus|Teratai|0|Daunnya seperti jarum.","Hewan taiga berbulu tebal untuk...|Menghangatkan badan|Berenang|Terbang|0|Udara sangat dingin.","Taiga berhawa...|Dingin|Panas|Sangat kering|0|Musim dingin panjang."]},
+{n:"Tundra dan Kutub",s:["#cfe9ff","#ffffff"],g:"#f2f8ff",d:"❄️ 🧊 ⛄ ❄️",
+c:["🐻‍❄️|Beruang Kutub|Hewan (Biotik)|Beruang kutub berbulu putih tebal dan berlemak.","🦌|Rusa Kutub|Hewan (Biotik)|Rusa kutub makan lumut dan rumput pendek.","🦭|Singa Laut|Hewan (Biotik)|Singa laut berenang di air dingin dan berlemak tebal.","🐇|Kelinci Salju|Hewan (Biotik)|Bulu putihnya menyamarkan diri di salju.","🧊|Salju dan Es|Abiotik|Benda tak hidup yang sangat dingin."],
+q:["Hewan yang hidup di kutub?|Beruang kutub|Zebra|Unta|0|Berbulu putih tebal.","Tundra memiliki...|Rumput pendek dan salju|Hutan lebat|Pasir|0|Terlalu dingin untuk pohon tinggi.","Bagaimana hewan kutub bertahan?|Bulu atau lemak tebal|Berjemur|Minum es krim|0|Tubuh harus tetap hangat."]},
+{n:"Ekosistem Buatan",s:["#9fdcff","#f1fbd0"],g:"#6ec85a",d:"🍎 🥕 🌷 🌻",
+c:["🍎|Tanaman Buah|Tumbuhan (Biotik)|Manusia menanam pohon buah di kebun.","🥕|Sayuran|Tumbuhan (Biotik)|Wortel dan sayur ditanam dan dirawat manusia.","🐔|Ayam|Hewan (Biotik)|Ayam diternakkan manusia di kandang.","🐐|Kambing|Hewan (Biotik)|Kambing dipelihara untuk susu dan dagingnya.","🐟|Ikan Kolam|Hewan (Biotik)|Ikan dipelihara di kolam buatan."],
+q:["Ekosistem buatan dibuat oleh...|Manusia|Angin|Gunung|0|Contoh: sawah dan kebun.","Contoh ekosistem buatan?|Kolam ikan|Samudra|Gurun|0|Kolam dibuat dan dirawat orang.","Peran manusia di lingkungan?|Merawat lingkungan|Membuang sampah|Menebang sembarangan|0|Kita harus menjaga bumi."]}
+];
+const LAB=[["Individu","🐔","Satu makhluk hidup, misalnya seekor ayam."],["Populasi","🐔🐔🐔","Sekumpulan makhluk hidup sejenis."],["Komunitas","🐔🐛🌳","Berbagai populasi yang hidup bersama."],["Ekosistem","🐔🌳💧☀️","Makhluk hidup dan benda tak hidup yang saling berhubungan."],["Bioma","🏜️🌲🌴","Wilayah luas dengan iklim dan kehidupan yang khas."],["Biosfer","🌍","Seluruh wilayah Bumi tempat kehidupan berlangsung."]];
+// ===== STATE
+const S={score:0,unlocked:1,badges:{},book:{},lab:false};
+const $=id=>document.getElementById(id),cv=$("c"),x=cv.getContext("2d"),ui=$("ui");
+let lv=0,P,cards,plats,amb,parts=[],cam=0,mode="menu",K={},t=0,AC,snd=true,mus=true,nearC=null,WW=2500;
+const shuf=a=>a.map(v=>[Math.random(),v]).sort((p,q)=>p[0]-q[0]).map(v=>v[1]);
+// ===== AUDIO
+function tone(f,d=.15,ty="sine",v=.08){if(!snd&&ty!="triangle"||!AC)return;try{const o=AC.createOscillator(),g=AC.createGain();o.type=ty;o.frequency.value=f;g.gain.value=v;g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+const MEL=[523,0,659,0,784,659,523,0,587,0,698,0,880,698,587,0,659,0,784,0,988,784,659,0,523,587,659,784,659,587,523,0],BAS=[131,131,196,196,175,175,196,131];let ms=0;
+setInterval(()=>{if(!mus||!AC||AC.state!="running")return;const k=Math.pow(2,[0,2,-2,3,5,-3,1,-1,4,7][lv%10]/12),n=MEL[ms%32];if(n)tone(n*k,.22,"triangle",.05);if(ms%4==0)tone(BAS[ms/4%8]*k,.45,"triangle",.07);ms++},170);
+function say(s){if(snd&&window.speechSynthesis){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(s);u.lang="id-ID";u.rate=.9;speechSynthesis.speak(u)}catch(e){}}}
+function initA(){if(!AC)try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}if(AC&&AC.state=="suspended")AC.resume()}
+addEventListener("pointerdown",initA);
+// ===== UI helpers
+function show(h){saveP();ui.innerHTML='<div class="pn">'+h+'</div>';ui.style.display="flex"}
+function hide(){ui.style.display="none";ui.innerHTML=""}
+function conf(){let h="";for(let i=0;i<24;i++)h+='<span class="cf" style="left:'+(i*4.2)+'%;animation-delay:'+(i%8*.3)+'s">'+["🎉","⭐","✨","🎊"][i%4]+"</span>";ui.insertAdjacentHTML("beforeend",h)}
+function hud(){$("hl").textContent="Level "+(lv+1)+": "+L[lv].n;$("hs").textContent="❤️".repeat(Math.max(0,P.lives|0))+"🖤".repeat(3-Math.max(0,P.lives|0))+"  ⭐ "+S.score+"  🃏 "+cards.filter(c=>c.got).length+"/"+cards.length}
+function openMenu(){mode="menu";$("hud").style.display="none";const b=(f,l,c)=>'<button class="b '+(c||"")+'" style="display:block;width:96%;margin:.2em 0" onclick="'+f+'">'+l+"</button>";
+show("<h2 style='margin:.1em'>🧭 PETUALANGAN PENJELAJAH EKOSISTEM</h2><p style='margin:.2em'>👋 Halo, <b>"+esc(ME.n)+"</b> (Kelas "+esc(ME.c)+") — ⭐ "+S.score+(Object.keys(S.badges).length==10?" — 🏆 Penjelajah Ekosistem Hebat!":"")+"</p><div class='mg'><div>"+b("startAdv()","▶ Mulai Petualangan","g")+b("openMap()","🗺️ Peta Dunia Ekosistem")+b("openBook()","📖 Buku Koleksi")+b("openLab()","🔬 Laboratorium Ekosistem")+b("openQuiz()","❓ Kuis Pengetahuan")+b("openSet()","🔊 Pengaturan Suara")+b("openHelp()","ℹ️ Petunjuk Bermain")+b("saveP();ME=null;openLogin()","👤 Ganti Siswa")+"</div><div id='lb'>"+lbH()+"</div></div>")}
+function startAdv(){let i=0;while(i<9&&S.badges[i])i++;startLevel(i)}
+function openMap(){mode="menu";let h="<h2>🗺️ Peta Dunia Ekosistem</h2><div class='gr'>";L.forEach((l,i)=>{const o=i<S.unlocked;h+='<button class="b '+(S.badges[i]?"g":"")+'" '+(o?"":"disabled")+' onclick="startLevel('+i+')">'+(o?(S.badges[i]?"🏅 ":"")+(i+1)+"<br>"+l.n:"🔒 "+(i+1))+"</button>"});show(h+"</div><button class='b' onclick='openMenu()'>⬅ Menu</button>")}
+function openBook(){mode="menu";let h="<h2>📖 Buku Koleksi</h2><div style='max-height:68%;overflow:auto'>";L.forEach((l,i)=>{h+="<b>"+(i+1)+". "+l.n+"</b><div class='gr'>";l.c.forEach((s,j)=>{const[e,n,k,d]=s.split("|");const g=S.book[i+"-"+j];h+="<div class='ck'><big>"+(g?e:"❓")+"</big>"+(g?"<b>"+n+"</b><br>"+k+"<br>"+d:"Belum ditemukan")+"</div>"});h+="</div>"});show(h+"</div><button class='b' onclick='"+(P&&mode!="menu0"?"openMenu()":"openMenu()")+"'>⬅ Menu</button>")}
+function openSet(){show("<h2>🔊 Pengaturan Suara</h2><button class='b' onclick='snd=!snd;if(!snd)speechSynthesis.cancel();openSet()'>Efek suara dan narasi: "+(snd?"HIDUP":"MATI")+"</button><br><button class='b' onclick='mus=!mus;openSet()'>Musik latar: "+(mus?"HIDUP":"MATI")+"</button><br><button class='b g' onclick='openMenu()'>⬅ Menu</button>")}
+function openHelp(){show("<h2>ℹ️ Petunjuk Bermain</h2><ol style='text-align:left;line-height:1.5'><li>🏃 <b>Berjalan:</b> tombol ← → (atau A D) di komputer, tombol ◀ ▶ di layar ponsel.</li><li>⬆ <b>Melompat:</b> Spasi atau tombol ⬆. Lompati batu dan naiki papan!</li><li>🃏 <b>Ambil kartu:</b> dekati kartu yang bersinar, lalu tekan <b>E</b> atau tombol E (+10 poin).</li><li>❓ Kumpulkan semua kartu, lalu jawab kuis (+20 poin tiap jawaban benar). Jika salah, baca petunjuk dan coba lagi.</li><li>❤️ Kamu punya 3 nyawa. Menabrak hewan yang berjalan mengurangi 1 nyawa, jadi lompati mereka! Jika nyawa habis, ulangi level (skor tidak hilang).</li><li>🏅 Selesaikan level untuk mendapat lencana dan membuka level baru. Kumpulkan 10 lencana untuk gelar Penjelajah Ekosistem Hebat!</li><li>🔬 <b>Laboratorium:</b> susun tingkat kehidupan dari individu sampai biosfer.</li></ol><p>📱 Di ponsel atau tablet, putar layar ke mendatar agar permainan lebih besar. Game ini bisa dimainkan di HP Android, iPhone, tablet, laptop, dan komputer.</p><button class='b g' onclick='back()'>⬅ Kembali</button>")}
+// ===== LOGIN, PERINGKAT, PENYIMPANAN
+let ME=null,DB=null,LB=[],lastPush="";
+const ls={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const esc=s=>String(s).replace(/[&<>"']/g,c=>"&#"+c.charCodeAt(0)+";");
+const sid=(n,c)=>(c+"_"+n).toLowerCase().replace(/[^a-z0-9]+/g,"_").slice(0,60);
+const back=()=>ME?openMenu():openLogin();
+const rankUp=()=>{const e=$("lb");if(e)e.innerHTML=lbH()};
+function saveP(){if(!ME)return;const b=Object.keys(S.badges).length;ls.set("pe_p_"+ME.id,{score:S.score,unlocked:S.unlocked,badges:S.badges,book:S.book,lab:S.lab});const a=(ls.get("pe_lb")||[]).filter(r=>r.id!=ME.id);a.push({id:ME.id,n:ME.n,c:ME.c,s:S.score,b});ls.set("pe_lb",a.slice(-200));const k=S.score+"/"+b;if(DB&&k!=lastPush){lastPush=k;DB.doc("scores/"+ME.id).set({n:ME.n,c:ME.c,s:S.score,b}).catch(()=>{})}}
+function lbH(){const sh=DB&&LB.length,a=(sh?LB:(ls.get("pe_lb")||[])).slice().sort((p,q)=>(+q.s||0)-(+p.s||0)).slice(0,10);return "<b>🏆 Peringkat Skor</b> <small>("+(sh?"semua perangkat":"perangkat ini")+")</small><ol style='margin:.3em 0;padding-left:1.5em'>"+(a.length?a.map(r=>"<li style='"+(ME&&r.id==ME.id?"background:#ffe9a8;color:#2b3a55;border-radius:6px":"")+"'>"+esc(r.n)+" ("+esc(r.c)+") ⭐ "+(+r.s||0)+"</li>").join(""):"<li>Belum ada pemain</li>")+"</ol>"}
+function openLogin(){mode="menu";$("hud").style.display="none";const m=ls.get("pe_me")||{};show("<h1>🧭 Selamat Datang, Penjelajah!</h1><p>Isi nama dan kelasmu dulu ya.</p><input id='ln' maxlength='20' placeholder='Nama siswa' value='"+esc(m.n||"")+"'><br><input id='lc' maxlength='8' placeholder='Kelas (contoh: 3A)' value='"+esc(m.c||"")+"'><br><b id='le' style='color:#e0532b'></b><br><button class='b g' onclick='doLogin()'>Masuk ▶</button> <button class='b' onclick='openHelp()'>ℹ️ Petunjuk</button><div id='lb' style='margin-top:.5em'>"+lbH()+"</div>")}
+function doLogin(){const n=$("ln").value.trim(),c=$("lc").value.trim();if(!n||!c){$("le").textContent="Isi nama dan kelas dulu ya!";return}ME={n,c,id:sid(n,c)};ls.set("pe_me",{n,c});const p=ls.get("pe_p_"+ME.id)||{};S.score=p.score||0;S.unlocked=p.unlocked||1;S.badges=p.badges||{};S.book=p.book||{};S.lab=!!p.lab;if(DB)DB.doc("scores/"+ME.id).get().then(d=>{if(d.exists&&(+d.data().s||0)>S.score)S.score=+d.data().s}).catch(()=>{});tone(660,.2);openMenu()}
+async function initDB(){try{if(!window.claude)return;const d=await claude.use("db");if(!d)return;DB=d;d.collection("scores").orderBy("s","desc").limit(20).onSnapshot(q=>{LB=q.docs.map(w=>({id:w.id,...w.data()}));rankUp()},()=>{LB=[]});saveP()}catch(e){DB=null}}
+// ===== LAB
+let lab=[];
+function openLab(){lab=[];labR()}
+function labR(msg){const n=lab.length;if(n==6){const f=!S.lab;if(f){S.lab=true;S.score+=60}tone(660,.3);say("Hebat! Urutannya benar.");show("<h2>🔬 Hebat! Urutan benar!</h2><p style='font-size:1.6em'>🐔 → 🐔🐔🐔 → 🌳 → 🌍</p><p>Dari individu sampai biosfer, makin lama makin luas.</p>"+(f?"<p>+60 poin ⭐</p>":"")+"<button class='b g' onclick='openMenu()'>Menu</button>");conf();return}
+let h="<h2>🔬 Laboratorium Ekosistem</h2><p>Susun dari yang paling kecil ke paling luas. Pilih tingkat ke-"+(n+1)+":</p>";lab.forEach(i=>h+="<div class='ck' style='text-align:left;margin:.2em'>✅ "+LAB[i][1]+" <b>"+LAB[i][0]+"</b>: "+LAB[i][2]+"</div>");if(msg)h+="<p style='color:#e0532b;font-weight:bold'>"+msg+"</p>";shuf([0,1,2,3,4,5].filter(i=>!lab.includes(i))).forEach(i=>h+="<button class='b' onclick='labP("+i+")'>"+LAB[i][1]+"<br>"+LAB[i][0]+"</button>");show(h+"<br><button class='b s' onclick='openMenu()'>⬅ Menu</button>")}
+function labP(i){if(i==lab.length){lab.push(i);tone(520);labR()}else{tone(180,.2);labR("Belum tepat. Mulai dari ayam seekor, lalu makin luas. Coba lagi!")}}
+// ===== LEVEL
+function startLevel(i){lv=i;const l=L[i];P={x:60,y:320,vx:0,vy:0,f:1,g:true,lives:3,inv:0};cards=l.c.map((s,k)=>{const[e,n,c,d]=s.split("|"),fl=k%2==1;return{e,n,c,d,k,x:380+k*430,y:fl?252:364,got:false}});plats=[];for(let k=0;k<5;k++){plats.push({x:230+k*430,w:50,y:335,r:1});if(k%2)plats.push({x:380+k*430-60,w:120,y:260})}
+amb=l.c.filter(s=>s.split("|")[2].includes("Hewan")).map(s=>s.split("|")[0]).concat(["🐛","🦗","🐝","🐞"]).slice(0,4).map((e,k)=>({e,x:300+k*600,d:k%2?1:-1}));parts=[];cam=0;mode="play";$("hud").style.display="flex";hide();hud();say("Level "+(i+1)+". "+l.n+". Temukan semua kartu!")}
+function act(){if(mode!="play"||!nearC)return;const c=nearC;c.got=true;nearC=null;const key=lv+"-"+c.k;if(!S.book[key]){S.book[key]=1;S.score+=10}for(let i=0;i<14;i++)parts.push({x:c.x,y:c.y-30,vx:(Math.random()-.5)*8,vy:-Math.random()*7,l:50});tone(784,.2);setTimeout(()=>tone(1046,.25),120);hud();mode="pop";say(c.n+". "+c.d);show("<h2>✨ Kartu Baru! ✨</h2><div class='ck' style='font-size:1.1em;max-width:60%;margin:auto'><big style='font-size:4em'>"+c.e+"</big><b>"+c.n+"</b><br><i>"+c.c+"</i><p>"+c.d+"</p></div><button class='b g' onclick='closePop()'>Lanjut ▶</button>")}
+function closePop(){hide();if(cards.every(c=>c.got)){S.score+=50;hud();startQuiz(lv,L[lv].q,true)}else mode="play"}
+// ===== QUIZ
+let QZ,qi,qok;
+function startQuiz(l,arr,lvl){QZ={l,arr:arr.map(s=>s.split("|")),lvl};qi=0;mode="quiz";quizR()}
+function quizR(){const q=QZ.arr[qi],o=shuf([1,2,3].map((v,j)=>({t:q[v],ok:j==+q[4]})));qok=o;let h="<h2>❓ Kuis "+(qi+1)+"/"+QZ.arr.length+"</h2><p style='font-size:1.2em'><b>"+q[0]+"</b></p>";o.forEach((v,j)=>h+="<button class='b' id='o"+j+"' onclick='ans("+j+")'>"+v.t+"</button><br>");show(h+"<p id='fb'></p>");say(q[0])}
+function ans(j){const q=QZ.arr[qi],fb=$("fb");if(qok[j].ok){S.score+=20;hud&&mode=="quiz"&&QZ.lvl&&hud();tone(880,.3);fb.innerHTML="<b style='color:#2fb36d;font-size:1.2em'>🌟 Hebat! Jawabanmu benar! +20</b><br><button class='b g' onclick='nextQ()'>Lanjut ▶</button>";qok.forEach((_,i)=>$("o"+i).disabled=true);say("Hebat! Jawabanmu benar!")}else{tone(200,.25);$("o"+j).disabled=true;fb.innerHTML="<b style='color:#e0532b'>Ayo coba lagi! 💡 Petunjuk: "+q[5]+"</b>"}}
+function nextQ(){qi++;if(qi<QZ.arr.length)return quizR();if(QZ.lvl){const i=QZ.l;S.badges[i]=1;S.unlocked=Math.max(S.unlocked,Math.min(10,i+2));const all=Object.keys(S.badges).length==10;show("<h2>🏅 Lencana Level "+(i+1)+"!</h2><p style='font-size:1.3em'>Misi "+L[i].n+" selesai! Bonus kartu lengkap +50 ⭐</p>"+(all?"<h2>🏆 Gelar: Penjelajah Ekosistem Hebat!</h2>":(i<9?"<p>🔓 Level "+(i+2)+" terbuka!</p>":""))+"<p>Skor: "+S.score+"</p>"+(i<9?"<button class='b g' onclick='startLevel("+(i+1)+")'>Level berikutnya ▶</button>":"")+"<button class='b' onclick='openMap()'>🗺️ Peta</button>");conf();tone(660,.2);setTimeout(()=>tone(990,.4),200);say("Selamat! Kamu mendapat lencana!")}else show("<h2>🎉 Kuis selesai!</h2><p>Skor: "+S.score+"</p><button class='b g' onclick='openMenu()'>Menu</button>")}
+function openQuiz(){startQuiz(0,shuf(L.flatMap(l=>l.q)).slice(0,5),false)}
+function hit(a){P.lives--;P.inv=100;P.vy=-9;P.x=Math.max(0,P.x+(P.x<a.x?-60:60));for(let i=0;i<6;i++)parts.push({e:"💔",x:P.x+15,y:P.y,vx:(Math.random()-.5)*6,vy:-Math.random()*6,l:40});tone(180,.3,"sawtooth",.06);hud();if(P.lives<=0){mode="pop";K={};say("Nyawamu habis. Ayo coba lagi!");show("<h2>😢 Nyawamu habis!</h2><p>Jangan menyerah, penjelajah hebat! Lompati hewan yang berjalan agar tidak menabrak. Skor dan koleksimu tetap aman.</p><button class='b g' onclick='startLevel("+lv+")'>🔄 Coba Lagi</button><button class='b' onclick='openMap()'>🗺️ Peta</button>")}else say("Aduh! Hati-hati!")}
+// ===== GAME LOOP
+addEventListener("keydown",e=>{if(e.target.tagName=="INPUT")return;initA();const k=e.key.toLowerCase();if(["arrowleft","arrowright"," ","arrowup"].includes(k))e.preventDefault();if(k=="arrowleft"||k=="a")K.l=1;if(k=="arrowright"||k=="d")K.r=1;if(k==" "||k=="arrowup"||k=="w")K.j=1;if(k=="e")act()});addEventListener("blur",()=>{K={}});
+addEventListener("keyup",e=>{const k=e.key.toLowerCase();if(k=="arrowleft"||k=="a")K.l=0;if(k=="arrowright"||k=="d")K.r=0;if(k==" "||k=="arrowup"||k=="w")K.j=0});
+[["bl","l"],["br","r"],["bj","j"]].forEach(([id,k])=>{const b=$(id);b.onpointerdown=e=>{e.preventDefault();K[k]=1};["pointerup","pointerleave","pointercancel"].forEach(ev=>b.addEventListener(ev,()=>K[k]=0))});
+$("be").onpointerdown=e=>{e.preventDefault();act()};
+function upd(){P.vx=((K.r?1:0)-(K.l?1:0))*4;if(P.vx)P.f=P.vx>0?1:-1;if(K.j&&P.g){P.vy=-13;P.g=false;tone(400,.1)}P.vy+=.6;P.x=Math.max(0,Math.min(WW-30,P.x+P.vx));const pb=P.y+50;P.y+=P.vy;P.g=false;if(P.y+50>=370){P.y=320;P.vy=0;P.g=true}
+for(const p of plats)if(P.vy>=0&&pb<=p.y+2&&P.y+50>=p.y&&P.x+26>p.x&&P.x+4<p.x+p.w){P.y=p.y-50;P.vy=0;P.g=true}
+amb.forEach(a=>{a.x+=a.d*1.1;if(a.x<100||a.x>WW-100)a.d*=-1;if(P.inv<=0&&Math.abs(P.x+15-a.x)<26&&P.y+50>340)hit(a)});if(P.inv>0)P.inv--;nearC=null;cards.forEach(c=>{if(!c.got&&Math.abs(P.x+15-c.x)<45&&Math.abs(P.y+25-(c.y-30))<70)nearC=c});cam=Math.max(0,Math.min(WW+100-900,P.x-350));parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.3;p.l--});parts=parts.filter(p=>p.l>0)}
+function rr(a,b,w,h,r,f){x.fillStyle=f;x.beginPath();x.roundRect(a,b,w,h,r);x.fill()}
+function txt(s,a,b,sz){x.font=sz+"px sans-serif";x.textAlign="center";x.fillText(s,a,b)}
+function draw(){t++;const l=L[lv]||L[0],g=x.createLinearGradient(0,0,0,450);g.addColorStop(0,l.s[0]);g.addColorStop(1,l.s[1]);x.fillStyle=g;x.fillRect(0,0,900,450);
+x.fillStyle="#ffe14d";x.beginPath();x.arc(780,80,38+Math.sin(t/20)*2,0,7);x.fill();x.fillStyle="rgba(255,255,255,.85)";for(let i=0;i<5;i++){const cx=((i*260+t*.3-cam*.2)%1200)-150;x.beginPath();x.arc(cx,90+i%3*30,26,0,7);x.arc(cx+28,98+i%3*30,22,0,7);x.arc(cx-26,100+i%3*30,20,0,7);x.fill()}
+const dc=l.d.split(" ");dc.forEach((_,k)=>{});for(let i=0;i<20;i++){const px=i*170+(i*37%60)-cam*.6;if(px>-60&&px<960)txt(dc[i%dc.length],px,360,46)}
+x.fillStyle=l.g;x.fillRect(0,370,900,80);x.fillStyle="rgba(0,0,0,.12)";x.fillRect(0,370,900,6);
+plats.forEach(p=>{const px=p.x-cam;if(p.r){txt("🪨",px+25,p.y+36,46)}else{rr(px,p.y,p.w,14,7,"#8a5a2b");rr(px,p.y,p.w,6,3,"#5bbf4a")}});
+amb.forEach(a=>{x.save();x.translate(a.x-cam,370+Math.sin(t/8+a.x)*-2);x.scale(a.d,1);txt(a.e,0,0,34);x.restore()});
+cards.forEach(c=>{if(c.got)return;const cx=c.x-cam,by=c.y-60+Math.sin(t/15+c.k)*5;x.shadowColor="gold";x.shadowBlur=15;rr(cx-24,by,48,58,8,"#fff");x.shadowBlur=0;rr(cx-24,by,48,58,8,"rgba(255,200,60,.35)");x.fillStyle="#2b3a55";txt(c.e,cx,by+38,30);if(nearC==c){rr(cx-48,by-30,96,24,12,"#ff8a3d");x.fillStyle="#fff";txt("Tekan E",cx,by-13,15)}});
+// pemain
+const px=P.x-cam+15,py=P.y,w=P.g&&P.vx?Math.sin(t/3)*8:0;x.save();x.globalAlpha=P.inv>0&&(t>>2)%2?.3:1;x.translate(px,py);x.scale(P.f,1);rr(-17,16,10,22,4,"#a0622e");rr(-12+w*.2,38,8,12+w*.3,3,"#3b4a6b");rr(4-w*.2,38,8,12-w*.3,3,"#3b4a6b");rr(-10,16,22,24,6,"#2fb36d");x.fillStyle="#ffd9b0";x.beginPath();x.arc(2,10,11,0,7);x.fill();rr(-10,-2,24,8,4,"#ff8a3d");rr(2,0,16,5,3,"#ff8a3d");x.fillStyle="#222";x.fillRect(6,9,3,4);rr(8,26+w*.3,10,12,2,"#3f7be0");x.restore();
+parts.forEach(p=>{x.globalAlpha=p.l/50;txt(p.e||"⭐",p.x-cam,p.y,18)});x.globalAlpha=1}
+function loop(){if(mode=="play")upd();draw();requestAnimationFrame(loop)}
+if(!x.roundRect)x.roundRect=function(a,b,w,h){this.rect(a,b,w,h)};
+P={x:60,y:320,vx:0,vy:0,f:1,g:true};cards=[];plats=[];amb=[];loop();openLogin();initDB();
+</script></body></html>
